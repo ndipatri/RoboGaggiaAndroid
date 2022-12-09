@@ -1,7 +1,9 @@
 import org.gradle.internal.jvm.Jvm
 
 buildscript {
-    ext.kotlin_version = '1.7.22'
+    ext.kotlin_version = '1.7.20'
+    ext.compose_version = '1.2.1'
+
     repositories {
         mavenCentral()
         google()
@@ -30,16 +32,6 @@ subprojects {
     ktlint {
         debug = false
     }
-}
-
-allprojects {
-    repositories {
-        google()
-        mavenCentral()
-        maven { url "https://repo.eclipse.org/content/repositories/paho-releases/" }
-        maven { url 'https://jitpack.io' }
-    }
-
 }
 
 @SuppressWarnings('unused')
