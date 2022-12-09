@@ -57,8 +57,6 @@ fun DefaultPreview() {
 }
 
 
-
-
 class Mqtt {
 
     fun getClient(applicationContext: Context): MqttAndroidClient {
