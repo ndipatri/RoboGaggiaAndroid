@@ -14,7 +14,9 @@
         android:theme="@style/Theme.RoboGaggia"
         tools:targetApi="31">
         <activity
-            android:name=".MainActivity"
+        android:screenOrientation="landscape"
+        android:configChanges="orientation|keyboardHidden"
+        android:name=".MainActivity"
             android:exported="true"
             android:label="@string/app_name"
             android:theme="@style/Theme.RoboGaggia">
