@@ -155,19 +155,22 @@ class MainActivity : ComponentActivity() {
                         // bars
                         Graph(
                             pathColor = barsColor,
-                            points = pressureSeries
+                            points = pressureSeries,
+                            heightMultiplier = .6F
                         )
 
                         // grams per second
                         Graph(
                             pathColor = gramsPerSecColor,
-                            points = flowRateSeries
+                            points = flowRateSeries,
+                            heightMultiplier = .5F
                         )
 
                         // celsius
                         Graph(
                             pathColor = tempColor,
-                            points = tempSeries
+                            points = tempSeries,
+                            heightMultiplier = .04F
                         )
                     }
                 }
@@ -180,7 +183,7 @@ class MainActivity : ComponentActivity() {
 
                     val weightList = listOf(0, 0, 0, 0, 0, 0, 1, 4, 11, 17, 19, 22, 25, 31, 34, 38, 41, 41)
                     val pressureList = listOf(8, 0, 1, 0, 0, 0, 1, 4, 7, 5, 3, 8, 11, 11, 8, 9, 7, 7)
-                    val flowRateList = listOf(0, 0, 0, 0, 0, 0, 0.833333, 2.5, 5.833333, 5, 1.666667, 2.5, 2.5, 5, 2.5, 3.333333, 2.5, 2.5)
+                    val flowRateList = listOf(0, 0, 0, 0, 0, 0, 0.833333, 2.5, 1.833333, 5, 1.666667, 2.5, 2.5, 5, 2.5, 1.333333, 2.5, 2.5)
                     val tempList = listOf(
                         103.75,
                         106.5,
@@ -358,6 +361,7 @@ class MainActivity : ComponentActivity() {
 fun Graph(
     pathColor: Color,
     points: List<Float>,
+    // the lower the number, the larger the scale..
     heightMultiplier: Float = 0.2F
 ) {
     val MAX_SAMPLES = 30
