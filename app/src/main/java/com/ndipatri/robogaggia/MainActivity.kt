@@ -5,14 +5,15 @@ import android.content.res.Configuration
 import android.graphics.Paint
 import android.graphics.PointF
 import android.os.Bundle
+import android.util.Half.toFloat
 import android.view.View
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.ExperimentalFoundationApi
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material.Surface
 import androidx.compose.material.Text
@@ -21,6 +22,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.livedata.observeAsState
 import androidx.compose.runtime.remember
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Color.Companion.Green
@@ -28,15 +30,12 @@ import androidx.compose.ui.graphics.Color.Companion.Magenta
 import androidx.compose.ui.graphics.Color.Companion.Red
 import androidx.compose.ui.graphics.Color.Companion.Yellow
 import androidx.compose.ui.graphics.Path
-import androidx.compose.ui.graphics.Shadow
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.asAndroidPath
 import androidx.compose.ui.graphics.asComposePath
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.nativeCanvas
-import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalDensity
-import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -52,7 +51,6 @@ import org.eclipse.paho.client.mqttv3.IMqttToken
 import org.eclipse.paho.client.mqttv3.MqttCallbackExtended
 import org.eclipse.paho.client.mqttv3.MqttConnectOptions
 import org.eclipse.paho.client.mqttv3.MqttMessage
-import kotlin.random.Random
 
 
 @OptIn(ExperimentalFoundationApi::class)
@@ -95,7 +93,10 @@ class MainActivity : ComponentActivity() {
                                 // Regular
                             },
                             onLongClick = {
-                                mqttInstance.incomingTelemetryLD.postValue(null)
+                                val intent = intent
+                                finish()
+                                startActivity(intent)
+                                //mqttInstance.incomingTelemetryLD.postValue(null)
                             }
                         ),
                     color = Color.Black,
@@ -116,33 +117,10 @@ class MainActivity : ComponentActivity() {
                         val tempColor = Green
 
                         Column {
-                            Text(
-                                text = "grams",
-                                style = TextStyle(
-                                    fontSize = 26.sp, color = gramsColor
-                                )
-                            )
-
-                            Text(
-                                text = "bars",
-                                style = TextStyle(
-                                    fontSize = 26.sp, color = barsColor
-                                )
-                            )
-
-                            Text(
-                                text = "grams/sec",
-                                style = TextStyle(
-                                    fontSize = 26.sp, color = gramsPerSecColor
-                                )
-                            )
-
-                            Text(
-                                text = "tempC",
-                                style = TextStyle(
-                                    fontSize = 26.sp, color = tempColor
-                                )
-                            )
+                            seriesTitleRow("grams", Yellow, maxValue(latestMessageList!!) { it.weightGrams.toFloat() })
+                            seriesTitleRow("bars", Red, maxValue(latestMessageList!!) { it.pressureBars.toFloat() })
+                            seriesTitleRow("grams/sec", Magenta, maxValue(latestMessageList!!) { it.flowRateGPS.toFloat() })
+                            seriesTitleRow("tempC", Green, maxValue(latestMessageList!!) { it.brewTempC.toFloat() })
                         }
 
                         // grams
@@ -237,6 +215,36 @@ class MainActivity : ComponentActivity() {
                     }
                 }
             }
+        }
+    }
+
+    private fun maxValue(list: List<TelemetryMessage>, extractElementFromList: (TelemetryMessage) -> Float): Float {
+        return list
+            .map { extractElementFromList.invoke(it) }
+            .reduce { max, next ->
+                if (next > max) {
+                    next
+                } else {
+                    max
+                }
+            }
+    }
+
+    @Composable
+    private fun seriesTitleRow(seriesTitle: String, seriesColor: Color, seriesMax: Float) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Text(
+                text = seriesTitle,
+                style = TextStyle(
+                    fontSize = 26.sp, color = seriesColor
+                )
+            )
+            Text(
+                text = " ($seriesMax)",
+                style = TextStyle(
+                    fontSize = 18.sp, color = seriesColor
+                )
+            )
         }
     }
 
