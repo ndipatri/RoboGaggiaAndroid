@@ -5,13 +5,13 @@ import android.content.res.Configuration
 import android.graphics.Paint
 import android.graphics.PointF
 import android.os.Bundle
-import android.util.Half.toFloat
 import android.view.View
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.combinedClickable
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
@@ -23,11 +23,13 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.livedata.observeAsState
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
+import androidx.compose.ui.Alignment.Companion.TopEnd
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Color.Companion.Green
 import androidx.compose.ui.graphics.Color.Companion.Magenta
 import androidx.compose.ui.graphics.Color.Companion.Red
+import androidx.compose.ui.graphics.Color.Companion.White
 import androidx.compose.ui.graphics.Color.Companion.Yellow
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.StrokeCap
@@ -36,10 +38,10 @@ import androidx.compose.ui.graphics.asComposePath
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.nativeCanvas
 import androidx.compose.ui.platform.LocalDensity
-import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.MutableLiveData
+import com.ndipatri.robogaggia.theme.Purple40
 import com.ndipatri.robogaggia.theme.RoboGaggiaTheme
 import info.mqtt.android.service.MqttAndroidClient
 import info.mqtt.android.service.QoS
@@ -51,6 +53,7 @@ import org.eclipse.paho.client.mqttv3.IMqttToken
 import org.eclipse.paho.client.mqttv3.MqttCallbackExtended
 import org.eclipse.paho.client.mqttv3.MqttConnectOptions
 import org.eclipse.paho.client.mqttv3.MqttMessage
+import java.time.format.TextStyle
 
 
 @OptIn(ExperimentalFoundationApi::class)
@@ -110,17 +113,31 @@ class MainActivity : ComponentActivity() {
                         val pressureSeries = latestMessageList!!.map { it.pressureBars.toFloat() }
                         val flowRateSeries = latestMessageList!!.map { it.flowRateGPS.toFloat() }
                         val tempSeries = latestMessageList!!.map { it.brewTempC.toFloat() }
+                        val dutyCycleSeries = latestMessageList!!.map { it.dutyCyclePercent.toFloat() }
 
                         val gramsColor = Yellow
                         val barsColor = Red
                         val gramsPerSecColor = Magenta
                         val tempColor = Green
+                        val dutyCyleColor = Purple40
 
-                        Column {
-                            seriesTitleRow("grams", Yellow, maxValue(latestMessageList!!) { it.weightGrams.toFloat() })
-                            seriesTitleRow("bars", Red, maxValue(latestMessageList!!) { it.pressureBars.toFloat() })
-                            seriesTitleRow("grams/sec", Magenta, maxValue(latestMessageList!!) { it.flowRateGPS.toFloat() })
-                            seriesTitleRow("tempC", Green, maxValue(latestMessageList!!) { it.brewTempC.toFloat() })
+                        Box(modifier = Modifier.fillMaxSize()) {
+
+                            Column {
+                                seriesTitleRow("grams", gramsColor, maxValue(latestMessageList!!) { it.weightGrams.toFloat() })
+                                seriesTitleRow("bars", barsColor, maxValue(latestMessageList!!) { it.pressureBars.toFloat() })
+                                seriesTitleRow("grams/sec", gramsPerSecColor, maxValue(latestMessageList!!) { it.flowRateGPS.toFloat() })
+                                seriesTitleRow("tempC", tempColor, maxValue(latestMessageList!!) { it.brewTempC.toFloat() })
+                                seriesTitleRow("dutyCycle", dutyCyleColor, maxValue(latestMessageList!!) { it.dutyCyclePercent.toFloat() })
+                            }
+
+                            Text(
+                                modifier = Modifier.align(TopEnd),
+                                text = latestMessageList!!.last().description,
+                                style = TextStyle(
+                                    fontSize = 14.sp, color = White
+                                )
+                            )
                         }
 
                         // grams
@@ -141,7 +158,7 @@ class MainActivity : ComponentActivity() {
                         Graph(
                             pathColor = gramsPerSecColor,
                             points = flowRateSeries,
-                            heightMultiplier = .5F
+                            heightMultiplier = .6F
                         )
 
                         // celsius
@@ -149,6 +166,13 @@ class MainActivity : ComponentActivity() {
                             pathColor = tempColor,
                             points = tempSeries,
                             heightMultiplier = .04F
+                        )
+
+                        // dutyCycle
+                        Graph(
+                            pathColor = dutyCyleColor,
+                            points = dutyCycleSeries,
+                            heightMultiplier = .03F
                         )
                     }
                 }
@@ -159,6 +183,7 @@ class MainActivity : ComponentActivity() {
 
                     var index: Int = 0
 
+                    val description = "PID(1,2,4)"
                     val weightList = listOf(0, 0, 0, 0, 0, 0, 1, 4, 11, 17, 19, 22, 25, 31, 34, 38, 41, 41)
                     val pressureList = listOf(8, 0, 1, 0, 0, 0, 1, 4, 7, 5, 3, 8, 11, 11, 8, 9, 7, 7)
                     val flowRateList = listOf(0, 0, 0, 0, 0, 0, 0.833333, 2.5, 1.833333, 5, 1.666667, 2.5, 2.5, 5, 2.5, 1.333333, 2.5, 2.5)
@@ -182,11 +207,14 @@ class MainActivity : ComponentActivity() {
                         96.25,
                         96.25
                     )
+                    val dutyCycleList = listOf(0, 50, 20, 0, 0, 0, 0.833333, 80, 1.833333, 5, 17, 25, 20, 5, 20, 10, 25, 25)
 
+                    println("description: ${description})")
                     println("weightList: size=${weightList.size}")
                     println("pressureList: size=${pressureList.size}")
                     println("flowRateList: size=${flowRateList.size}")
                     println("tempList: size=${tempList.size}")
+                    println("dutyCycleList: size=${dutyCycleList.size}")
 
                     while (true) {
                         delay(250)
@@ -199,14 +227,16 @@ class MainActivity : ComponentActivity() {
                         var nextPressueValue = pressureList[index]
                         var nextFlowRateValue = flowRateList[index]
                         var nextTempValue = tempList[index]
+                        var nextDutyCycleValue = dutyCycleList[index]
                         if (++index == weightList.size) break
 
                         val newRoboGaggiaMessage = TelemetryMessage(
                             weightGrams = "$nextWeightValue",
                             pressureBars = "$nextPressueValue",
-                            dutyCyclePercent = "3",
+                            dutyCyclePercent = "$nextDutyCycleValue",
                             flowRateGPS = "$nextFlowRateValue",
-                            brewTempC = "$nextTempValue"
+                            brewTempC = "$nextTempValue",
+                            description = "$description"
                         )
 
                         existingList.add(newRoboGaggiaMessage)
@@ -281,6 +311,7 @@ class MainActivity : ComponentActivity() {
                     }
 
                     lateinit var stateName: String
+                    lateinit var description: String
                     lateinit var measuredWeightGrams: String
                     lateinit var measuredPressureBars: String
                     lateinit var pumpDutyCycle: String
@@ -290,11 +321,12 @@ class MainActivity : ComponentActivity() {
                     message.toString().split(",").forEachIndexed() { index, element ->
                         when (index) {
                             0 -> stateName = element
-                            1 -> measuredWeightGrams = element
-                            2 -> measuredPressureBars = element
-                            3 -> pumpDutyCycle = element
-                            4 -> flowRateGPS = element
-                            5 -> brewTempC = element
+                            1 -> description = element
+                            2 -> measuredWeightGrams = element
+                            3 -> measuredPressureBars = element
+                            4 -> pumpDutyCycle = element
+                            5 -> flowRateGPS = element
+                            6 -> brewTempC = element
                         }
                     }
 
@@ -303,7 +335,8 @@ class MainActivity : ComponentActivity() {
                         pressureBars = measuredPressureBars,
                         dutyCyclePercent = pumpDutyCycle,
                         flowRateGPS = flowRateGPS,
-                        brewTempC = brewTempC
+                        brewTempC = brewTempC,
+                        description = description
                     )
 
                     existingList.add(newRoboGaggiaMessage)
@@ -372,7 +405,7 @@ fun Graph(
     // the lower the number, the larger the scale..
     heightMultiplier: Float = 0.2F
 ) {
-    val MAX_SAMPLES = 30
+    val MAX_SAMPLES = 50
 
     var _points = mutableListOf<Float>().also {
         it.addAll(points)
@@ -383,7 +416,7 @@ fun Graph(
     }
 
     val paddingSpace = 16.dp
-    val widthMultiplier = 1.2F
+    val widthMultiplier = .8F
     val heightDP = 200
     val xValues = (0..MAX_SAMPLES).map { it + 1 }
 
@@ -443,7 +476,8 @@ fun Graph(
         }
 
         /** filling the area under the path */
-        val fillPath = android.graphics.Path(stroke.asAndroidPath())
+        /** filling the area under the path */
+        val fillPath = Path(stroke.asAndroidPath())
             .asComposePath()
             .apply {
                 lineTo(xAxisSpace * xValues.last(), size.height - heightDP)
@@ -463,6 +497,7 @@ fun Graph(
 
 
 data class TelemetryMessage(
+    val description: String,
     val weightGrams: String,
     val pressureBars: String,
     val dutyCyclePercent: String,
