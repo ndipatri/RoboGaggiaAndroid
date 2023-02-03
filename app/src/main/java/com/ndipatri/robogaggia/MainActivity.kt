@@ -6,6 +6,10 @@ import android.graphics.Paint
 import android.graphics.PointF
 import android.os.Bundle
 import android.view.View
+import android.view.Window
+import android.view.WindowInsets
+import android.view.WindowManager
+import android.view.WindowManager.LayoutParams.FLAG_FULLSCREEN
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.Canvas
@@ -15,6 +19,9 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.paddingFromBaseline
+import androidx.compose.foundation.layout.size
 import androidx.compose.material.Surface
 import androidx.compose.material.Text
 import androidx.compose.runtime.Composable
@@ -37,7 +44,11 @@ import androidx.compose.ui.graphics.asAndroidPath
 import androidx.compose.ui.graphics.asComposePath
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.nativeCanvas
+import androidx.compose.ui.layout.AlignmentLine
+import androidx.compose.ui.layout.FirstBaseline
+import androidx.compose.ui.layout.layout
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.MutableLiveData
@@ -63,21 +74,11 @@ class MainActivity : ComponentActivity() {
 
     private lateinit var mqttInstance: Mqtt
 
-    // prevent orientation change.
-    override fun onConfigurationChanged(newConfig: Configuration) {
-        super.onConfigurationChanged(newConfig)
-    }
-
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
-        window.decorView.apply {
-            // Hide both the navigation bar and the status bar.
-            // SYSTEM_UI_FLAG_FULLSCREEN is only available on Android 4.1 and higher, but as
-            // a general rule, you should design your app to hide the status bar whenever you
-            // hide the navigation bar.
-            systemUiVisibility = View.SYSTEM_UI_FLAG_HIDE_NAVIGATION or View.SYSTEM_UI_FLAG_FULLSCREEN
-        }
+        // Hide the status bar.
+        window.decorView.systemUiVisibility = View.SYSTEM_UI_FLAG_FULLSCREEN
 
         mqttInstance = Mqtt().also {
             if (!TEST_MODE) {
@@ -96,10 +97,8 @@ class MainActivity : ComponentActivity() {
                                 // Regular
                             },
                             onLongClick = {
-                                val intent = intent
                                 finish()
                                 startActivity(intent)
-                                //mqttInstance.incomingTelemetryLD.postValue(null)
                             }
                         ),
                     color = Color.Black,
@@ -134,9 +133,7 @@ class MainActivity : ComponentActivity() {
                             Text(
                                 modifier = Modifier.align(TopEnd),
                                 text = latestMessageList!!.last().description,
-                                style = TextStyle(
-                                    fontSize = 14.sp, color = White
-                                )
+                                color = White
                             )
                         }
 
@@ -151,7 +148,7 @@ class MainActivity : ComponentActivity() {
                         Graph(
                             pathColor = barsColor,
                             points = pressureSeries,
-                            heightMultiplier = .6F
+                            heightMultiplier = .4F
                         )
 
                         // grams per second
@@ -265,14 +262,114 @@ class MainActivity : ComponentActivity() {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Text(
                 text = seriesTitle,
-                style = TextStyle(
-                    fontSize = 26.sp, color = seriesColor
-                )
+                color = seriesColor,
+                //modifier = Modifier.padding(top = 50.dp)
+                //modifier = Modifier.paddingFromBaseline(50.dp)
             )
             Text(
                 text = " ($seriesMax)",
-                style = TextStyle(
-                    fontSize = 18.sp, color = seriesColor
+                color = seriesColor
+            )
+        }
+    }
+
+
+    /**
+     * Heavily inspired by an article by Saurabh Pant
+     * https://proandroiddev.com/creating-graph-in-jetpack-compose-312957b11b2
+     */
+    @Composable
+    fun Graph(
+        pathColor: Color,
+        points: List<Float>,
+        // the lower the number, the larger the scale..
+        heightMultiplier: Float = 0.2F
+    ) {
+        val MAX_SAMPLES = 16
+
+        var _points = mutableListOf<Float>().also {
+            it.addAll(points)
+        }
+
+        if (_points.size > MAX_SAMPLES) {
+            _points = _points.subList(_points.size - (_points.size % MAX_SAMPLES) - 1, _points.size)
+        }
+
+        val paddingSpace = 16.dp
+        val widthMultiplier = .8F
+        val heightDP = 200
+        val xValues = (0..MAX_SAMPLES).map { it + 1 }
+
+        val controlPoints1 = mutableListOf<PointF>()
+        val controlPoints2 = mutableListOf<PointF>()
+        val coordinates = mutableListOf<PointF>()
+        val density = LocalDensity.current
+        val textPaint = remember(density) {
+            Paint().apply {
+                color = android.graphics.Color.WHITE
+                textAlign = Paint.Align.CENTER
+                textSize = density.run { 12.sp.toPx() }
+            }
+        }
+
+        Canvas(
+            modifier = Modifier.fillMaxSize(),
+        ) {
+            val xAxisSpace = widthMultiplier * ((size.width - paddingSpace.toPx()) / xValues.size)
+            /** placing x axis points */
+            for (i in xValues.indices step 5) {
+                drawContext.canvas.nativeCanvas.drawText(
+                    "${xValues[i]}",
+                    xAxisSpace * (i + 1),
+                    size.height - MAX_SAMPLES,
+                    textPaint
+                )
+            }
+            /** placing our x axis points */
+            for (i in _points.indices) {
+                val x1 = xAxisSpace * xValues[i]
+                val y1 = size.height - (heightDP * (_points[i] * heightMultiplier.toFloat()))
+                coordinates.add(PointF(x1, y1))
+                /** drawing circles to indicate all the points */
+//                drawCircle(
+//                    color = Color.Red,
+//                    radius = 10f,
+//                    center = Offset(x1,y1)
+//                )
+            }
+            /** calculating the connection points */
+            for (i in 1 until coordinates.size) {
+                controlPoints1.add(PointF((coordinates[i].x + coordinates[i - 1].x) / 2, coordinates[i - 1].y))
+                controlPoints2.add(PointF((coordinates[i].x + coordinates[i - 1].x) / 2, coordinates[i].y))
+            }
+            /** drawing the path */
+            val stroke = Path().apply {
+                reset()
+                moveTo(coordinates.first().x, coordinates.first().y)
+                for (i in 0 until coordinates.size - 1) {
+                    cubicTo(
+                        controlPoints1[i].x, controlPoints1[i].y,
+                        controlPoints2[i].x, controlPoints2[i].y,
+                        coordinates[i + 1].x, coordinates[i + 1].y
+                    )
+                }
+            }
+
+            /** filling the area under the path */
+            // NJD unused anyway
+//        val fillPath = Path(stroke.asAndroidPath())
+//            .asComposePath()
+//            .apply {
+//                lineTo(xAxisSpace * xValues.last(), size.height - heightDP)
+//                lineTo(xAxisSpace, size.height - heightDP)
+//                close()
+//            }
+            drawPath(
+                stroke,
+                color = pathColor,
+                style = Stroke(
+                    width = 10f,
+                    cap = StrokeCap.Round
                 )
             )
         }
@@ -392,109 +489,6 @@ class MainActivity : ComponentActivity() {
         }
     }
 }
-
-
-/**
- * Heavily inspired by an article by Saurabh Pant
- * https://proandroiddev.com/creating-graph-in-jetpack-compose-312957b11b2
- */
-@Composable
-fun Graph(
-    pathColor: Color,
-    points: List<Float>,
-    // the lower the number, the larger the scale..
-    heightMultiplier: Float = 0.2F
-) {
-    val MAX_SAMPLES = 50
-
-    var _points = mutableListOf<Float>().also {
-        it.addAll(points)
-    }
-
-    if (_points.size > MAX_SAMPLES) {
-        _points = _points.subList(_points.size - (_points.size % MAX_SAMPLES) - 1, _points.size)
-    }
-
-    val paddingSpace = 16.dp
-    val widthMultiplier = .8F
-    val heightDP = 200
-    val xValues = (0..MAX_SAMPLES).map { it + 1 }
-
-    val controlPoints1 = mutableListOf<PointF>()
-    val controlPoints2 = mutableListOf<PointF>()
-    val coordinates = mutableListOf<PointF>()
-    val density = LocalDensity.current
-    val textPaint = remember(density) {
-        Paint().apply {
-            color = android.graphics.Color.WHITE
-            textAlign = Paint.Align.CENTER
-            textSize = density.run { 12.sp.toPx() }
-        }
-    }
-
-    Canvas(
-        modifier = Modifier.fillMaxSize(),
-    ) {
-        val xAxisSpace = widthMultiplier * ((size.width - paddingSpace.toPx()) / xValues.size)
-        /** placing x axis points */
-        for (i in xValues.indices step 5) {
-            drawContext.canvas.nativeCanvas.drawText(
-                "${xValues[i]}",
-                xAxisSpace * (i + 1),
-                size.height - MAX_SAMPLES,
-                textPaint
-            )
-        }
-        /** placing our x axis points */
-        for (i in _points.indices) {
-            val x1 = xAxisSpace * xValues[i]
-            val y1 = size.height - (heightDP * (_points[i] * heightMultiplier.toFloat()))
-            coordinates.add(PointF(x1, y1))
-            /** drawing circles to indicate all the points */
-//                drawCircle(
-//                    color = Color.Red,
-//                    radius = 10f,
-//                    center = Offset(x1,y1)
-//                )
-        }
-        /** calculating the connection points */
-        for (i in 1 until coordinates.size) {
-            controlPoints1.add(PointF((coordinates[i].x + coordinates[i - 1].x) / 2, coordinates[i - 1].y))
-            controlPoints2.add(PointF((coordinates[i].x + coordinates[i - 1].x) / 2, coordinates[i].y))
-        }
-        /** drawing the path */
-        val stroke = Path().apply {
-            reset()
-            moveTo(coordinates.first().x, coordinates.first().y)
-            for (i in 0 until coordinates.size - 1) {
-                cubicTo(
-                    controlPoints1[i].x, controlPoints1[i].y,
-                    controlPoints2[i].x, controlPoints2[i].y,
-                    coordinates[i + 1].x, coordinates[i + 1].y
-                )
-            }
-        }
-
-        /** filling the area under the path */
-        /** filling the area under the path */
-        val fillPath = Path(stroke.asAndroidPath())
-            .asComposePath()
-            .apply {
-                lineTo(xAxisSpace * xValues.last(), size.height - heightDP)
-                lineTo(xAxisSpace, size.height - heightDP)
-                close()
-            }
-        drawPath(
-            stroke,
-            color = pathColor,
-            style = Stroke(
-                width = 10f,
-                cap = StrokeCap.Round
-            )
-        )
-    }
-}
-
 
 data class TelemetryMessage(
     val description: String,
