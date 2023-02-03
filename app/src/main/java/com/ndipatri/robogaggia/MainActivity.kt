@@ -123,11 +123,13 @@ class MainActivity : ComponentActivity() {
                         Box(modifier = Modifier.fillMaxSize()) {
 
                             Column {
-                                seriesTitleRow("grams", gramsColor, maxValue(latestMessageList!!) { it.weightGrams.toFloat() })
-                                seriesTitleRow("bars", barsColor, maxValue(latestMessageList!!) { it.pressureBars.toFloat() })
-                                seriesTitleRow("grams/sec", gramsPerSecColor, maxValue(latestMessageList!!) { it.flowRateGPS.toFloat() })
-                                seriesTitleRow("tempC", tempColor, maxValue(latestMessageList!!) { it.brewTempC.toFloat() })
-                                seriesTitleRow("dutyCycle", dutyCyleColor, maxValue(latestMessageList!!) { it.dutyCyclePercent.toFloat() })
+
+                                // TODO - Need to calculate maxValue for each series!
+                                seriesTitleRow("grams", gramsColor, 0.0F)
+                                seriesTitleRow("bars", barsColor, 0.0F)
+                                seriesTitleRow("grams/sec", gramsPerSecColor, 0.0F)
+                                seriesTitleRow("tempC", tempColor, 0.0F)
+                                seriesTitleRow("dutyCycle", dutyCyleColor, 0.0F)
                             }
 
                             Text(
@@ -243,18 +245,6 @@ class MainActivity : ComponentActivity() {
                 }
             }
         }
-    }
-
-    private fun maxValue(list: List<TelemetryMessage>, extractElementFromList: (TelemetryMessage) -> Float): Float {
-        return list
-            .map { extractElementFromList.invoke(it) }
-            .reduce { max, next ->
-                if (next > max) {
-                    next
-                } else {
-                    max
-                }
-            }
     }
 
     @Composable
