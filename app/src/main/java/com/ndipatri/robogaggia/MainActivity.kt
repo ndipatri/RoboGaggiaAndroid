@@ -285,7 +285,7 @@ class MainActivity : ComponentActivity() {
         // the lower the number, the larger the scale..
         heightMultiplier: Float = 0.2F
     ) {
-        val MAX_SAMPLES = 16
+        val MAX_SAMPLES = 50
 
         var _points = mutableListOf<Float>().also {
             it.addAll(points)
@@ -481,7 +481,9 @@ class MainActivity : ComponentActivity() {
         }
 
         companion object {
-            private const val serverUri = "tcp://io.adafruit.com:1883"
+            //private const val serverUri = "tcp://io.adafruit.com:1883"
+            // NJD TODO - need to move this into secrets.properties..
+            private const val serverUri = "tcp://10.0.0.181:1883"
             private const val subscriptionTopic = "ndipatri/feeds/robogaggiatelemetry"
             private const val publishTopic = "exampleAndroidPublishTopic"
             private const val publishMessage = "Hello World"
