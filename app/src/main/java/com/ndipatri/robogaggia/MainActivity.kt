@@ -227,7 +227,7 @@ class MainActivity : ComponentActivity() {
                         var nextFlowRateValue = flowRateList[index]
                         var nextTempValue = tempList[index]
                         var nextDutyCycleValue = dutyCycleList[index]
-                        if (++index == weightList.size) break
+                        if (++index == weightList.size-1) break
 
                         val newRoboGaggiaMessage = TelemetryMessage(
                             weightGrams = "$nextWeightValue",
