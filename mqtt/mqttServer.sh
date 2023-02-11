@@ -15,7 +15,7 @@
 trap "kill 0" EXIT
 
 # Launch local MQTT Broker.
-/opt/homebrew/opt/mosquitto/sbin/mosquitto -c /opt/homebrew/etc/mosquitto/mosquitto.conf
+/opt/homebrew/opt/mosquitto/sbin/mosquitto -c /opt/homebrew/etc/mosquitto/mosquitto.conf &
 
 # Connect Local MQTT client.
 mqttx conn -h localhost -p 1883 &
