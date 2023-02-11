@@ -17,9 +17,9 @@ android {
         versionCode getGitCommitCount()
         versionName getTag()
 
+        buildConfigField("String", "MQTT_SERVER", secretsProperties['MQTT_SERVER'])
         buildConfigField("String", "AIO_USERNAME", secretsProperties['AIO_USERNAME'])
         buildConfigField("String", "AIO_PASSWORD", secretsProperties['AIO_PASSWORD'])
-        buildConfigField("boolean", "TEST_MODE", secretsProperties['TEST_MODE'])
 
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         testInstrumentationRunnerArguments useTestStorageService: 'true'
@@ -57,6 +57,8 @@ dependencies {
     implementation "androidx.compose.material:material:$compose_version"
     implementation "androidx.compose.runtime:runtime-livedata:$compose_version"
 
+    implementation "androidx.lifecycle:lifecycle-viewmodel-compose:2.4.1"
+    implementation "org.jetbrains.kotlinx:kotlinx-coroutines-core-jvm:1.6.4"
 
     testImplementation 'junit:junit:4.13.2'
     debugImplementation "androidx.compose.ui:ui-tooling:$compose_version"

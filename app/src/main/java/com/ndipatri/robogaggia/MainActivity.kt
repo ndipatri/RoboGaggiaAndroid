@@ -1,15 +1,9 @@
 package com.ndipatri.robogaggia
 
-import android.content.Context
-import android.content.res.Configuration
 import android.graphics.Paint
 import android.graphics.PointF
 import android.os.Bundle
 import android.view.View
-import android.view.Window
-import android.view.WindowInsets
-import android.view.WindowManager
-import android.view.WindowManager.LayoutParams.FLAG_FULLSCREEN
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.Canvas
@@ -19,13 +13,9 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.paddingFromBaseline
-import androidx.compose.foundation.layout.size
 import androidx.compose.material.Surface
 import androidx.compose.material.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.livedata.observeAsState
 import androidx.compose.runtime.remember
@@ -40,39 +30,18 @@ import androidx.compose.ui.graphics.Color.Companion.White
 import androidx.compose.ui.graphics.Color.Companion.Yellow
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.StrokeCap
-import androidx.compose.ui.graphics.asAndroidPath
-import androidx.compose.ui.graphics.asComposePath
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.nativeCanvas
-import androidx.compose.ui.layout.AlignmentLine
-import androidx.compose.ui.layout.FirstBaseline
-import androidx.compose.ui.layout.layout
 import androidx.compose.ui.platform.LocalDensity
-import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.lifecycle.MutableLiveData
+import androidx.lifecycle.viewmodel.compose.viewModel
 import com.ndipatri.robogaggia.theme.Purple40
 import com.ndipatri.robogaggia.theme.RoboGaggiaTheme
-import info.mqtt.android.service.MqttAndroidClient
-import info.mqtt.android.service.QoS
-import kotlinx.coroutines.delay
-import org.eclipse.paho.client.mqttv3.DisconnectedBufferOptions
-import org.eclipse.paho.client.mqttv3.IMqttActionListener
-import org.eclipse.paho.client.mqttv3.IMqttDeliveryToken
-import org.eclipse.paho.client.mqttv3.IMqttToken
-import org.eclipse.paho.client.mqttv3.MqttCallbackExtended
-import org.eclipse.paho.client.mqttv3.MqttConnectOptions
-import org.eclipse.paho.client.mqttv3.MqttMessage
-import java.time.format.TextStyle
 
 
 @OptIn(ExperimentalFoundationApi::class)
 class MainActivity : ComponentActivity() {
-
-    private val TEST_MODE = BuildConfig.TEST_MODE
-
-    private lateinit var mqttInstance: Mqtt
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -80,13 +49,9 @@ class MainActivity : ComponentActivity() {
         // Hide the status bar.
         window.decorView.systemUiVisibility = View.SYSTEM_UI_FLAG_FULLSCREEN
 
-        mqttInstance = Mqtt().also {
-            if (!TEST_MODE) {
-                it.start(applicationContext)
-            }
-        }
-
         setContent {
+            val roboViewModel = viewModel<RoboViewModel>()
+
             RoboGaggiaTheme {
                 // A surface container using the 'background' color from the theme
                 Surface(
@@ -103,7 +68,7 @@ class MainActivity : ComponentActivity() {
                         ),
                     color = Color.Black,
                 ) {
-                    val latestMessageList by mqttInstance.incomingTelemetryLD.observeAsState()
+                    val latestMessageList by roboViewModel.mqttInstance.incomingTelemetryLD.observeAsState()
 
                     if (latestMessageList.isNullOrEmpty()) {
                         Text("Sorry, no messages!", color = Color.White)
@@ -171,74 +136,6 @@ class MainActivity : ComponentActivity() {
                             points = dutyCycleSeries,
                             heightMultiplier = .03F
                         )
-                    }
-                }
-            }
-
-            if (TEST_MODE) {
-                LaunchedEffect(true) {
-
-                    var index: Int = 0
-
-                    val description = "PID(1,2,4)"
-                    val weightList = listOf(0, 0, 0, 0, 0, 0, 1, 4, 11, 17, 19, 22, 25, 31, 34, 38, 41, 41)
-                    val pressureList = listOf(8, 0, 1, 0, 0, 0, 1, 4, 7, 5, 3, 8, 11, 11, 8, 9, 7, 7)
-                    val flowRateList = listOf(0, 0, 0, 0, 0, 0, 0.833333, 2.5, 1.833333, 5, 1.666667, 2.5, 2.5, 5, 2.5, 1.333333, 2.5, 2.5)
-                    val tempList = listOf(
-                        103.75,
-                        106.5,
-                        109.75,
-                        112.75,
-                        114.5,
-                        116.25,
-                        117,
-                        116,
-                        114.25,
-                        111,
-                        108.25,
-                        105.25,
-                        102.5,
-                        100,
-                        98,
-                        96.75,
-                        96.25,
-                        96.25
-                    )
-                    val dutyCycleList = listOf(0, 50, 20, 0, 0, 0, 0.833333, 80, 1.833333, 5, 17, 25, 20, 5, 20, 10, 25, 25)
-
-                    println("description: ${description})")
-                    println("weightList: size=${weightList.size}")
-                    println("pressureList: size=${pressureList.size}")
-                    println("flowRateList: size=${flowRateList.size}")
-                    println("tempList: size=${tempList.size}")
-                    println("dutyCycleList: size=${dutyCycleList.size}")
-
-                    while (true) {
-                        delay(250)
-
-                        val existingList = mutableListOf<TelemetryMessage>().also {
-                            it.addAll(mqttInstance.incomingTelemetryLD.value ?: emptyList())
-                        }
-
-                        var nextWeightValue = weightList[index]
-                        var nextPressueValue = pressureList[index]
-                        var nextFlowRateValue = flowRateList[index]
-                        var nextTempValue = tempList[index]
-                        var nextDutyCycleValue = dutyCycleList[index]
-                        if (++index == weightList.size) break
-
-                        val newRoboGaggiaMessage = TelemetryMessage(
-                            weightGrams = "$nextWeightValue",
-                            pressureBars = "$nextPressueValue",
-                            dutyCyclePercent = "$nextDutyCycleValue",
-                            flowRateGPS = "$nextFlowRateValue",
-                            brewTempC = "$nextTempValue",
-                            description = "$description"
-                        )
-
-                        existingList.add(newRoboGaggiaMessage)
-
-                        mqttInstance.incomingTelemetryLD.postValue(existingList)
                     }
                 }
             }
@@ -374,129 +271,4 @@ class MainActivity : ComponentActivity() {
             )
         }
     }
-
-    class Mqtt {
-
-        val incomingTelemetryLD = MutableLiveData(mutableListOf<TelemetryMessage>())
-
-        lateinit var mqttAndroidClient: MqttAndroidClient
-
-        fun start(applicationContext: Context) {
-
-            clientId += System.currentTimeMillis()
-            mqttAndroidClient = MqttAndroidClient(applicationContext, serverUri, clientId)
-            mqttAndroidClient.setCallback(object : MqttCallbackExtended {
-                override fun connectComplete(reconnect: Boolean, serverURI: String) {
-                    if (reconnect) {
-                        println("Reconnected: $serverURI")
-                        // Because Clean Session is true, we need to re-subscribe
-                        subscribeToTopic(mqttAndroidClient)
-                    } else {
-                        println("Connected: $serverURI")
-                    }
-                }
-
-                override fun connectionLost(cause: Throwable?) {
-                    println("The Connection was lost.")
-                }
-
-                override fun messageArrived(topic: String, message: MqttMessage) {
-                    println("Incoming message: " + String(message.payload))
-
-                    val existingList = mutableListOf<TelemetryMessage>().also {
-                        it.addAll(incomingTelemetryLD.value ?: emptyList())
-                    }
-
-                    lateinit var stateName: String
-                    lateinit var description: String
-                    lateinit var measuredWeightGrams: String
-                    lateinit var measuredPressureBars: String
-                    lateinit var pumpDutyCycle: String
-                    lateinit var flowRateGPS: String
-                    lateinit var brewTempC: String
-
-                    message.toString().split(",").forEachIndexed() { index, element ->
-                        when (index) {
-                            0 -> stateName = element
-                            1 -> description = element
-                            2 -> measuredWeightGrams = element
-                            3 -> measuredPressureBars = element
-                            4 -> pumpDutyCycle = element
-                            5 -> flowRateGPS = element
-                            6 -> brewTempC = element
-                        }
-                    }
-
-                    val newRoboGaggiaMessage = TelemetryMessage(
-                        weightGrams = measuredWeightGrams,
-                        pressureBars = measuredPressureBars,
-                        dutyCyclePercent = pumpDutyCycle,
-                        flowRateGPS = flowRateGPS,
-                        brewTempC = brewTempC,
-                        description = description
-                    )
-
-                    existingList.add(newRoboGaggiaMessage)
-
-                    incomingTelemetryLD.postValue(existingList)
-                }
-
-                override fun deliveryComplete(token: IMqttDeliveryToken) {}
-            })
-
-            val mqttConnectOptions = MqttConnectOptions()
-            mqttConnectOptions.isAutomaticReconnect = true
-            mqttConnectOptions.isCleanSession = false
-            mqttConnectOptions.userName = BuildConfig.AIO_USERNAME
-            mqttConnectOptions.password = BuildConfig.AIO_PASSWORD.toCharArray()
-            println("Connecting: $serverUri")
-            mqttAndroidClient.connect(mqttConnectOptions, null, object : IMqttActionListener {
-                override fun onSuccess(asyncActionToken: IMqttToken) {
-                    val disconnectedBufferOptions = DisconnectedBufferOptions()
-                    disconnectedBufferOptions.isBufferEnabled = true
-                    disconnectedBufferOptions.bufferSize = 100
-                    disconnectedBufferOptions.isPersistBuffer = false
-                    disconnectedBufferOptions.isDeleteOldestMessages = false
-                    mqttAndroidClient.setBufferOpts(disconnectedBufferOptions)
-
-                    subscribeToTopic(mqttAndroidClient)
-                }
-
-                override fun onFailure(asyncActionToken: IMqttToken?, exception: Throwable?) {
-                    println("Failed to connect: ${serverUri}")
-                }
-            })
-        }
-
-        fun subscribeToTopic(mqttAndroidClient: MqttAndroidClient) {
-            mqttAndroidClient.subscribe(subscriptionTopic, QoS.AtMostOnce.value, null, object : IMqttActionListener {
-                override fun onSuccess(asyncActionToken: IMqttToken) {
-                    println("Subscribed! ${subscriptionTopic}")
-                }
-
-                override fun onFailure(asyncActionToken: IMqttToken?, exception: Throwable?) {
-                    println("Failed to subscribe $exception")
-                }
-            })
-        }
-
-        companion object {
-            //private const val serverUri = "tcp://io.adafruit.com:1883"
-            // NJD TODO - need to move this into secrets.properties..
-            private const val serverUri = "tcp://10.0.0.181:1883"
-            private const val subscriptionTopic = "ndipatri/feeds/robogaggiatelemetry"
-            private const val publishTopic = "exampleAndroidPublishTopic"
-            private const val publishMessage = "Hello World"
-            private var clientId = ""
-        }
-    }
 }
-
-data class TelemetryMessage(
-    val description: String,
-    val weightGrams: String,
-    val pressureBars: String,
-    val dutyCyclePercent: String,
-    val flowRateGPS: String,
-    val brewTempC: String
-)
