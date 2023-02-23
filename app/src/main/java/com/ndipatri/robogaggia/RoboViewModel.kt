@@ -2,24 +2,36 @@ package com.ndipatri.robogaggia
 
 import android.app.Application
 import android.content.Context
+import android.util.Log
+import androidx.compose.ui.text.toLowerCase
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import info.mqtt.android.service.MqttAndroidClient
 import info.mqtt.android.service.QoS
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import org.eclipse.paho.client.mqttv3.DisconnectedBufferOptions
 import org.eclipse.paho.client.mqttv3.IMqttActionListener
 import org.eclipse.paho.client.mqttv3.IMqttDeliveryToken
 import org.eclipse.paho.client.mqttv3.IMqttToken
 import org.eclipse.paho.client.mqttv3.MqttCallbackExtended
 import org.eclipse.paho.client.mqttv3.MqttConnectOptions
+import org.eclipse.paho.client.mqttv3.MqttException
 import org.eclipse.paho.client.mqttv3.MqttMessage
 
 class RoboViewModel() : ViewModel() {
 
     val uiStateFlow: MutableStateFlow<UIState> = MutableStateFlow(UIState.Loading)
+
+    // The telemetry messages describe brew state (preinfusion, brewing).
+    // e.g. (preinfusion, preinfusion, ... , brewing, brewing ..., brewing) then it
+    // repeats upon a new brew event...
+    // This indicates we are in the 'brewing' state
+    var brewing: Boolean = false
 
     lateinit var mqttAndroidClient: MqttAndroidClient
 
@@ -73,6 +85,16 @@ class RoboViewModel() : ViewModel() {
                     description = description
                 )
 
+                if (!brewing && stateName.lowercase() == "brewing") {
+                    brewing = true
+                }
+                if (brewing && stateName.lowercase() == "preinfusion") {
+                    brewing = false
+
+                    // We are starting a new brew event.. so clear current uiState
+                    uiStateFlow.value = UIState.Data(listOf())
+                }
+
                 val accumulatedTelemetry = mutableListOf<TelemetryMessage>()
                 if (uiStateFlow.value is UIState.Data) {
                     accumulatedTelemetry.addAll((uiStateFlow.value as UIState.Data).accumulatedTelemetry)
@@ -94,22 +116,42 @@ class RoboViewModel() : ViewModel() {
         mqttConnectOptions.password = BuildConfig.AIO_PASSWORD.toCharArray()
         println("Connecting: ${BuildConfig.MQTT_SERVER}")
 
-        mqttAndroidClient.connect(mqttConnectOptions, null, object : IMqttActionListener {
-            override fun onSuccess(asyncActionToken: IMqttToken) {
-                val disconnectedBufferOptions = DisconnectedBufferOptions()
-                disconnectedBufferOptions.isBufferEnabled = true
-                disconnectedBufferOptions.bufferSize = 100
-                disconnectedBufferOptions.isPersistBuffer = false
-                disconnectedBufferOptions.isDeleteOldestMessages = false
-                mqttAndroidClient.setBufferOpts(disconnectedBufferOptions)
+        // amazingly, this MQTT client has a reconnect feature but it DOES NOT work on initial connection.. so i need to do this..
+        viewModelScope.launch {
+            withContext(Dispatchers.IO) {
+                var success = false
+                while (!success) {
+                    val token = mqttAndroidClient.connect(mqttConnectOptions, null, object : IMqttActionListener {
+                        override fun onSuccess(asyncActionToken: IMqttToken) {
+                            val disconnectedBufferOptions = DisconnectedBufferOptions()
+                            disconnectedBufferOptions.isBufferEnabled = true
+                            disconnectedBufferOptions.bufferSize = 100
+                            disconnectedBufferOptions.isPersistBuffer = false
+                            disconnectedBufferOptions.isDeleteOldestMessages = false
+                            mqttAndroidClient.setBufferOpts(disconnectedBufferOptions)
 
-                subscribeToTopic(mqttAndroidClient)
-            }
+                            subscribeToTopic(mqttAndroidClient)
+                        }
 
-            override fun onFailure(asyncActionToken: IMqttToken?, exception: Throwable?) {
-                println("Failed to connect: ${BuildConfig.MQTT_SERVER}, error: $exception")
+                        override fun onFailure(asyncActionToken: IMqttToken?, exception: Throwable?) {
+                            Log.d("RoboViewModel", "Failed to connect: ${BuildConfig.MQTT_SERVER}, error: $exception")
+                        }
+                    })
+
+                    success = try {
+                        token.waitForCompletion()
+
+                        true
+                    } catch (ex: MqttException) {
+                        Log.d("RoboViewModel","Problems during initial connection to MQTT broker..")
+
+                        delay(2000)
+
+                        false
+                    }
+                }
             }
-        })
+        }
     }
 
     fun subscribeToTopic(mqttAndroidClient: MqttAndroidClient) {

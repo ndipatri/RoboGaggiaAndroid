@@ -13,6 +13,7 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.material.Surface
 import androidx.compose.material.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateMapOf
@@ -67,10 +68,17 @@ class MainActivity : ComponentActivity() {
         setContent {
             NoStatusBar()
 
-            val viewModel = viewModel<RoboViewModel>().also { it.start(LocalContext.current) }
-            val uiState by viewModel.uiStateFlow.collectAsState()
+            val context = LocalContext.current
 
+            val viewModel = viewModel<RoboViewModel>()
+
+            val uiState by viewModel.uiStateFlow.collectAsState()
             MainContent(uiState)
+
+            // Only run on initial composition
+            LaunchedEffect(true) {
+                viewModel.start(context)
+            }
         }
     }
 
@@ -143,7 +151,6 @@ class MainActivity : ComponentActivity() {
                             accumulatedTelemetry = accumulatedTelemetry
                         )
 
-                        // bottom padding is tuned to match grid lines from background
                         Column(
                             modifier = Modifier
                                 .fillMaxWidth()
@@ -155,7 +162,7 @@ class MainActivity : ComponentActivity() {
                                         pathColor = colorList[index],
                                         yValues = series,
                                         yMaxValue = maxValueList[index],
-                                        xStepsPerScreen = 40 // 1 second per step
+                                        xStepsPerScreen = 40 // 1.2 second per step
                                     )
                                 }
                             }
