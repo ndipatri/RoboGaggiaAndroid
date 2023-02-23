@@ -51,6 +51,10 @@ class RoboViewModel() : ViewModel() {
 
             override fun connectionLost(cause: Throwable?) {
                 println("The Connection was lost.")
+
+                // The reconnect feature for this mqtt client is not very robust, so I'm just doing it myself
+                // here with a basic fallback...
+                reconnect(reconnectDelayMillis = 2000L)
             }
 
             override fun messageArrived(topic: String, message: MqttMessage) {
@@ -109,6 +113,12 @@ class RoboViewModel() : ViewModel() {
             override fun deliveryComplete(token: IMqttDeliveryToken) {}
         })
 
+        // amazingly, this MQTT client has a reconnect feature but it DOES NOT work on initial connection.. so i need to do this..
+        reconnect()
+    }
+
+    private fun reconnect(reconnectDelayMillis: Long = 0L) {
+
         val mqttConnectOptions = MqttConnectOptions()
         mqttConnectOptions.isAutomaticReconnect = true
         mqttConnectOptions.isCleanSession = false
@@ -116,8 +126,9 @@ class RoboViewModel() : ViewModel() {
         mqttConnectOptions.password = BuildConfig.AIO_PASSWORD.toCharArray()
         println("Connecting: ${BuildConfig.MQTT_SERVER}")
 
-        // amazingly, this MQTT client has a reconnect feature but it DOES NOT work on initial connection.. so i need to do this..
         viewModelScope.launch {
+            delay(reconnectDelayMillis)
+
             withContext(Dispatchers.IO) {
                 var success = false
                 while (!success) {
@@ -143,7 +154,7 @@ class RoboViewModel() : ViewModel() {
 
                         true
                     } catch (ex: MqttException) {
-                        Log.d("RoboViewModel","Problems during initial connection to MQTT broker..")
+                        Log.d("RoboViewModel", "Problems during initial connection to MQTT broker..")
 
                         delay(2000)
 
