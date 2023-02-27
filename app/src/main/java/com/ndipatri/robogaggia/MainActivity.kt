@@ -5,19 +5,24 @@ import android.graphics.PointF
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.shape.CutCornerShape
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.Button
+import androidx.compose.material.ButtonDefaults
+import androidx.compose.material.MaterialTheme.colors
+import androidx.compose.material.SnackbarDefaults.backgroundColor
 import androidx.compose.material.Surface
 import androidx.compose.material.Text
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.collectAsState
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateMapOf
-import androidx.compose.runtime.remember
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Alignment.Companion.Center
 import androidx.compose.ui.Alignment.Companion.TopEnd
@@ -46,6 +51,9 @@ import com.ndipatri.robogaggia.theme.Purple40
 import com.ndipatri.robogaggia.theme.PurpleGrey40_50
 import com.ndipatri.robogaggia.theme.PurpleGrey80
 import com.ndipatri.robogaggia.theme.RoboGaggiaTheme
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.launch
 
 /**
  * Inspired by work from
@@ -91,8 +99,8 @@ class MainActivity : ComponentActivity() {
 
         val uiState = UIState.Data(
             accumulatedTelemetry =
-                renderDummyTelemetry()
-            )
+            renderDummyTelemetry()
+        )
 
         MainContent(uiState)
     }
@@ -266,20 +274,24 @@ class MainActivity : ComponentActivity() {
         ) {
 
             Column(modifier = Modifier.fillMaxHeight()) {
-                Row(modifier = Modifier.fillMaxWidth()) {
+                // Single head row with all series not currently being displayed
+                Row(modifier = Modifier.border(BorderStroke(1.dp, PurpleGrey80), shape = RoundedCornerShape(20.dp))) {
                     seriesList.forEachIndexed { index, series ->
                         if (visibleSeriesMap[index] == false) {
-                            Text(
-                                modifier = Modifier
-                                    .padding(end = 20.dp)
-                                    .clickable(onClick = { onSeriesSelected(index) }),
-                                text = unitList[index],
-                                color = colorList[index],
-                            )
+                            DelayedClickButton(onClick = { onSeriesSelected(index) }) {
+                                Text(
+                                    modifier = Modifier
+                                        .padding(end = 20.dp),
+                                    text = unitList[index],
+                                    color = colorList[index],
+                                    fontSize = 16.sp
+                                )
+                            }
                         }
                     }
                 }
 
+                // Row for each series being displayed
                 seriesList.forEachIndexed { index, series ->
                     if (visibleSeriesMap[index] != false) {
                         SeriesTitleRow(unitList[index],
@@ -301,23 +313,27 @@ class MainActivity : ComponentActivity() {
 
     @Composable
     private fun ColumnScope.SeriesTitleRow(seriesTitle: String, seriesColor: Color, seriesMax: Float, onClick: () -> Unit) {
+
         Row(
             modifier = Modifier
                 .padding(top = 5.dp, bottom = 5.dp)
-                .weight(1f) // since this is a 'scoped' modifier, we need to extend ColumnScope for this Composable
-                .clickable(onClick = onClick),
+                .weight(1f), // since this is a 'scoped' modifier, we need to extend ColumnScope for this Composable
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Text(
-                text = seriesTitle,
-                color = seriesColor,
-                fontSize = 14.sp
-            )
-            Text(
-                text = " ($seriesMax)",
-                color = seriesColor,
-                fontSize = 14.sp
-            )
+            DelayedClickButton(
+                onClick = onClick,
+            ) {
+                Text(
+                    text = seriesTitle,
+                    color = seriesColor,
+                    fontSize = 16.sp
+                )
+                Text(
+                    text = " ($seriesMax)",
+                    color = seriesColor,
+                    fontSize = 16.sp
+                )
+            }
         }
     }
 
