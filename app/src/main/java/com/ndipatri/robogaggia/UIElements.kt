@@ -2,6 +2,7 @@ package com.ndipatri.robogaggia
 
 import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.shape.CutCornerShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.Button
 import androidx.compose.material.ButtonDefaults
 import androidx.compose.runtime.Composable
@@ -42,7 +43,7 @@ fun DelayedClickButton(onClick: () -> Unit, content: @Composable RowScope.() -> 
             pressedElevation = 15.dp,
             disabledElevation = 0.dp
         ),
-        shape = CutCornerShape(10),
+        shape =  RoundedCornerShape(20.dp),
         content = content
     )
 }

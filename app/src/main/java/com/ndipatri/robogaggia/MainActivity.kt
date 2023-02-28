@@ -1,7 +1,6 @@
 package com.ndipatri.robogaggia
 
 import android.graphics.Paint
-import android.graphics.PointF
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
@@ -9,17 +8,9 @@ import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.border
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
-import androidx.compose.foundation.interaction.MutableInteractionSource
-import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.shape.CutCornerShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.Button
-import androidx.compose.material.ButtonDefaults
-import androidx.compose.material.MaterialTheme.colors
-import androidx.compose.material.SnackbarDefaults.backgroundColor
 import androidx.compose.material.Surface
 import androidx.compose.material.Text
 import androidx.compose.runtime.*
@@ -36,9 +27,9 @@ import androidx.compose.ui.graphics.Color.Companion.Red
 import androidx.compose.ui.graphics.Color.Companion.White
 import androidx.compose.ui.graphics.Color.Companion.Yellow
 import androidx.compose.ui.graphics.Path
-import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.nativeCanvas
+import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.tooling.preview.Preview
@@ -51,9 +42,6 @@ import com.ndipatri.robogaggia.theme.Purple40
 import com.ndipatri.robogaggia.theme.PurpleGrey40_50
 import com.ndipatri.robogaggia.theme.PurpleGrey80
 import com.ndipatri.robogaggia.theme.RoboGaggiaTheme
-import kotlinx.coroutines.delay
-import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.launch
 
 /**
  * Inspired by work from
@@ -139,6 +127,9 @@ class MainActivity : ComponentActivity() {
 
                     val visibleSeriesMap = remember { mutableStateMapOf(0 to true, 1 to true, 2 to true, 3 to true, 4 to true) }
 
+                    val xStepsPerScreen = 40
+                    val secondsPerStep = 1.2
+
                     Box(modifier = Modifier.padding(start = 10.dp, top = 10.dp, end = 10.dp, bottom = 30.dp)) {
                         val numberOfVisibleRows = visibleSeriesMap.filterValues { value -> value }.size
 
@@ -165,14 +156,45 @@ class MainActivity : ComponentActivity() {
                         ) {
                             seriesList.forEachIndexed() { index, series ->
                                 if (visibleSeriesMap[index] != false) {
-                                    Graph2(
+                                    LineGraph(
                                         modifier = Modifier.weight(1f),
                                         pathColor = colorList[index],
                                         yValues = series,
                                         yMaxValue = maxValueList[index],
-                                        xStepsPerScreen = 40 // 1.2 second per step
+                                        xStepsPerScreen = xStepsPerScreen
                                     )
                                 }
+                            }
+                        }
+                    }
+
+                    val screenDensity = LocalDensity.current
+                    val textPaint = remember(screenDensity) {
+                        Paint().apply {
+                            color = White.toArgb()
+                            textAlign = Paint.Align.CENTER
+                            textSize = screenDensity.run { 12.sp.toPx() }
+                        }
+                    }
+
+                    Canvas(
+                        modifier = Modifier
+                            .padding(bottom = 15.dp)
+                            .fillMaxSize()
+                    ) {
+
+                        val xStepPx = size.width / xStepsPerScreen
+                        val totalValues = seriesList[0].size
+                        for (index in 1 .. totalValues) {
+                            // We only draw text at certain time intervals
+                            if (index % 5 == 0 || index == 1 || index == totalValues) {
+
+                                drawContext.canvas.nativeCanvas.drawText(
+                                    "${(index * secondsPerStep).toInt()}s",
+                                    size.width - (xStepPx * (totalValues - index) + 35),
+                                    size.height,
+                                    textPaint
+                                )
                             }
                         }
                     }
@@ -303,7 +325,9 @@ class MainActivity : ComponentActivity() {
             }
 
             Text(
-                modifier = Modifier.align(TopEnd),
+                modifier = Modifier
+                    .align(TopEnd)
+                    .padding(20.dp),
                 text = accumulatedTelemetry.last().description,
                 color = White,
                 fontSize = 14.sp
@@ -338,40 +362,87 @@ class MainActivity : ComponentActivity() {
     }
 
     @Composable
-    fun Graph2(
+    fun LineGraph(
         modifier: Modifier,
         pathColor: Color,
         yValues: List<Float>,
         yMaxValue: Float,
         xStepsPerScreen: Int,
     ) {
+        // This whole graph is just about rendering a Path...
         val path = Path()
         Canvas(
             // We need fillMaxSize.. otherwise, we are defining our size internally here.
             modifier = modifier.fillMaxSize()//.border(width = 1.dp, color = PurpleGrey80)
         ) {
             val xStepPx = size.width / xStepsPerScreen
-            val yZeroPx = size.height
+            val yZeroPx = size.height // y value representing the x-axis of the graph
 
             // We divide up our available plot height based on the highest possible value that we would
             // need to draw.. This is so we don't exceed our bounds when drawing...
             val yScaleFactor = yZeroPx / yMaxValue
 
-            yValues.forEachIndexed { index, value ->
+            // so we always start at 0 when drawing our graph
+            val values = mutableListOf<Float>().apply {
+                add(0F)
+                addAll(yValues)
+            }
+
+            var previousXPosition = 0F
+            var previousYPosition = 0F
+            values.forEachIndexed { index, value ->
                 // We start creating our path far enough to the
-                // left so all values will fit.. we add one extra value which is
-                // our artificial zero starting point.
-                val xPosition = size.width - (xStepPx * (yValues.size - index + 1))
+                // left so all values will fit.
+                val xPosition = size.width - (xStepPx * (values.size - index))
+                var yPosition = 0F
 
                 if (index == 0) {
+                    yPosition = yZeroPx
+
                     // In order to draw a line to first point, we have to start
                     // at origin for this graph
-                    path.moveTo(xPosition, yZeroPx)
+                    path.moveTo(xPosition, yPosition)
+                } else {
+                    yPosition = yZeroPx - (value * yScaleFactor)
+
+                    // We create two control points so the path between last point and
+                    // this point is not a straight one:
+                    //                        *
+                    //                      *   *
+                    //               cp2 *       p2
+                    //                 *
+                    //    p1         cp1
+                    //        *   *
+                    //          *
+                    path.cubicTo(
+                        (xPosition + previousXPosition) / 2,
+                        previousYPosition,
+                        (xPosition + previousXPosition) / 2,
+                        yPosition,
+                        xPosition,
+                        yPosition
+                    )
+                    //
+                    //                      *   *
+                    //                    *       p2
+                    //                cp1
+                    //    p1         *
+                    //        *   *
+                    //
+//                    path.quadraticBezierTo(
+//                        (xPosition + previousXPosition) / 2,
+//                        (yPosition + previousYPosition) / 2,
+//                        xPosition,
+//                        yPosition
+//                    )
+                    path.lineTo(
+                        xPosition,
+                        yPosition
+                    )
                 }
 
-                val yPosition = yZeroPx - (value * yScaleFactor)
-
-                path.lineTo(xPosition + xStepPx, yPosition)
+                previousXPosition = xPosition
+                previousYPosition = yPosition
             }
 
             drawPath(
@@ -409,106 +480,5 @@ class MainActivity : ComponentActivity() {
                     unitList = listOf("grams", "bars", "grams/sec", "tempC", "pumpPower"),
                     colorList = listOf(Yellow, Red, Magenta, Green, Purple40)
                 )
-    }
-
-    /**
-     * Heavily inspired by an article by Saurabh Pant
-     * https://proandroiddev.com/creating-graph-in-jetpack-compose-312957b11b2
-     */
-    @Composable
-    fun Graph(
-        pathColor: Color,
-        points: List<Float>,
-        // the lower the number, the larger the scale..
-        heightMultiplier: Float = 0.2F
-    ) {
-        val MAX_SAMPLES = 50
-
-        var _points = mutableListOf<Float>().also {
-            it.addAll(points)
-        }
-
-        if (_points.size > MAX_SAMPLES) {
-            _points = _points.subList(_points.size - (_points.size % MAX_SAMPLES) - 1, _points.size)
-        }
-
-        val paddingSpace = 16.dp
-        val widthMultiplier = .8F
-        val heightDP = 200
-        val xValues = (0..MAX_SAMPLES).map { it + 1 }
-
-        val controlPoints1 = mutableListOf<PointF>()
-        val controlPoints2 = mutableListOf<PointF>()
-        val coordinates = mutableListOf<PointF>()
-        val density = LocalDensity.current
-        val textPaint = remember(density) {
-            Paint().apply {
-                color = android.graphics.Color.WHITE
-                textAlign = Paint.Align.CENTER
-                textSize = density.run { 12.sp.toPx() }
-            }
-        }
-
-        Canvas(
-            modifier = Modifier.fillMaxSize(),
-        ) {
-            val xAxisSpace = widthMultiplier * ((size.width - paddingSpace.toPx()) / xValues.size)
-            /** placing x axis points */
-            for (i in xValues.indices step 5) {
-                drawContext.canvas.nativeCanvas.drawText(
-                    "${xValues[i]}",
-                    xAxisSpace * (i + 1),
-                    size.height - MAX_SAMPLES,
-                    textPaint
-                )
-            }
-            /** placing our x axis points */
-            for (i in _points.indices) {
-                val x1 = xAxisSpace * xValues[i]
-                val y1 = size.height - (heightDP * (_points[i] * heightMultiplier.toFloat()))
-                coordinates.add(PointF(x1, y1))
-                /** drawing circles to indicate all the points */
-//                drawCircle(
-//                    color = Color.Red,
-//                    radius = 10f,
-//                    center = Offset(x1,y1)
-//                )
-            }
-            /** calculating the connection points */
-            for (i in 1 until coordinates.size) {
-                controlPoints1.add(PointF((coordinates[i].x + coordinates[i - 1].x) / 2, coordinates[i - 1].y))
-                controlPoints2.add(PointF((coordinates[i].x + coordinates[i - 1].x) / 2, coordinates[i].y))
-            }
-            /** drawing the path */
-            val stroke = Path().apply {
-                reset()
-                moveTo(coordinates.first().x, coordinates.first().y)
-                for (i in 0 until coordinates.size - 1) {
-                    cubicTo(
-                        controlPoints1[i].x, controlPoints1[i].y,
-                        controlPoints2[i].x, controlPoints2[i].y,
-                        coordinates[i + 1].x, coordinates[i + 1].y
-                    )
-                }
-            }
-
-            /** filling the area under the path */
-            // NJD unused anyway
-//        val fillPath = Path(stroke.asAndroidPath())
-//            .asComposePath()
-//            .apply {
-//                lineTo(xAxisSpace * xValues.last(), size.height - heightDP)
-//                lineTo(xAxisSpace, size.height - heightDP)
-//                close()
-//            }
-            drawPath(
-                stroke,
-                color = pathColor,
-                style = Stroke(
-                    width = 10f,
-                    cap = StrokeCap.Round
-                )
-            )
-        }
     }
 }
