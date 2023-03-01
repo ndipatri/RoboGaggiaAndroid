@@ -395,35 +395,69 @@ class MainActivity : ComponentActivity() {
                 // We start creating our path far enough to the
                 // left so all values will fit.
 
-                println("*** NJD: index: $index, value: $value")
-                val xPosition = size.width - (xStepPx * (values.size - index))
 
-                val yPosition = yZeroPx - (value * yScaleFactor)
+//              NJD - this approach uses every other data point as control point
+//                println("*** NJD: index: $index, value: $value")
+//                val xPosition = size.width - (xStepPx * (values.size - index))
+//
+//                val yPosition = yZeroPx - (value * yScaleFactor)
+//
+//                if (index == 0) {
+//                    println("*** NJD: moveTo: ($xPosition, $yPosition")
+//                    path.moveTo(xPosition, yPosition)
+//                } else {
+//                    println("*** NJD: other ($xPosition, $yPosition")
+//
+//                    // every other value
+//                    if (index % 2 == 0) { // 2,4,6,8
+//                        println("*** NJD: mod: ($xPosition, $yPosition")
+//                        // every other point we actually use as a destination
+//                        // for bezier quadratic curve
+//                        //              cp
+//                        //           *  *  *
+//                        //        *           *p2
+//                        //    p1
+//                        //
+//                        path.quadraticBezierTo(
+//                            previousXPosition,
+//                            previousYPosition,
+//                            xPosition,
+//                            yPosition
+//                        )
+//                    }
+//                    // otherwise, this point will be used as a control point
+//                }
+
+                // NJD - this approach we create two fake control points in between data points..
+                // We start creating our path far enough to the
+                // left so all values will fit.
+                val xPosition = size.width - (xStepPx * (values.size - index))
+                var yPosition = 0F
 
                 if (index == 0) {
-                    println("*** NJD: moveTo: ($xPosition, $yPosition")
+                    yPosition = yZeroPx
+
+                    // In order to draw a line to first point, we have to start
+                    // at origin for this graph
                     path.moveTo(xPosition, yPosition)
                 } else {
-                    println("*** NJD: other ($xPosition, $yPosition")
+                    yPosition = yZeroPx - (value * yScaleFactor)
 
-                    // every other value
-                    if (index % 2 == 0) { // 2,4,6,8
-                        println("*** NJD: mod: ($xPosition, $yPosition")
-                        // every other point we actually use as a destination
-                        // for bezier quadratic curve
-                        //              cp
-                        //           *  *  *
-                        //        *           *p2
-                        //    p1
-                        //
-                        path.quadraticBezierTo(
-                            previousXPosition,
-                            previousYPosition,
-                            xPosition,
-                            yPosition
-                        )
-                    }
-                    // otherwise, this point will be used as a control point
+                    // We create two control points so the path between last point and
+                    // this point is not a straight one:
+                    //                      *   *
+                    //                cp2         p2
+                    //                 *
+                    //    p1          cp1
+                    //        *   *
+                    path.cubicTo(
+                        (xPosition + previousXPosition) / 2,
+                        previousYPosition,
+                        (xPosition + previousXPosition) / 2,
+                        yPosition,
+                        xPosition,
+                        yPosition
+                    )
                 }
 
                 previousXPosition = xPosition
@@ -434,6 +468,13 @@ class MainActivity : ComponentActivity() {
                     radius = 10f,
                     center = Offset(xPosition, yPosition)
                 )
+
+
+
+
+
+
+
 
                 drawPath(
                     path = path,
