@@ -125,7 +125,8 @@ class MainActivity : ComponentActivity() {
 
                     val (seriesList, maxValueList, unitList, colorList) = SeriesData(accumulatedTelemetry)
 
-                    val visibleSeriesMap = remember { mutableStateMapOf(0 to true, 1 to true, 2 to true, 3 to true, 4 to true) }
+                    //val visibleSeriesMap = remember { mutableStateMapOf(0 to true, 1 to true, 2 to true, 3 to true, 4 to true) }
+                    val visibleSeriesMap = remember { mutableStateMapOf(0 to true, 1 to false, 2 to false, 3 to false, 4 to false) }
 
                     val xStepsPerScreen = 40
                     val secondsPerStep = 1.2
@@ -185,7 +186,7 @@ class MainActivity : ComponentActivity() {
 
                         val xStepPx = size.width / xStepsPerScreen
                         val totalValues = seriesList[0].size
-                        for (index in 1 .. totalValues) {
+                        for (index in 1..totalValues) {
                             // We only draw text at certain time intervals
                             if (index % 5 == 0 || index == 1 || index == totalValues) {
 
@@ -393,63 +394,53 @@ class MainActivity : ComponentActivity() {
             values.forEachIndexed { index, value ->
                 // We start creating our path far enough to the
                 // left so all values will fit.
+
+                println("*** NJD: index: $index, value: $value")
                 val xPosition = size.width - (xStepPx * (values.size - index))
-                var yPosition = 0F
+
+                val yPosition = yZeroPx - (value * yScaleFactor)
 
                 if (index == 0) {
-                    yPosition = yZeroPx
-
-                    // In order to draw a line to first point, we have to start
-                    // at origin for this graph
+                    println("*** NJD: moveTo: ($xPosition, $yPosition")
                     path.moveTo(xPosition, yPosition)
                 } else {
-                    yPosition = yZeroPx - (value * yScaleFactor)
+                    println("*** NJD: other ($xPosition, $yPosition")
 
-                    // We create two control points so the path between last point and
-                    // this point is not a straight one:
-                    //                        *
-                    //                      *   *
-                    //               cp2 *       p2
-                    //                 *
-                    //    p1         cp1
-                    //        *   *
-                    //          *
-                    path.cubicTo(
-                        (xPosition + previousXPosition) / 2,
-                        previousYPosition,
-                        (xPosition + previousXPosition) / 2,
-                        yPosition,
-                        xPosition,
-                        yPosition
-                    )
-                    //
-                    //                      *   *
-                    //                    *       p2
-                    //                cp1
-                    //    p1         *
-                    //        *   *
-                    //
-//                    path.quadraticBezierTo(
-//                        (xPosition + previousXPosition) / 2,
-//                        (yPosition + previousYPosition) / 2,
-//                        xPosition,
-//                        yPosition
-//                    )
-                    path.lineTo(
-                        xPosition,
-                        yPosition
-                    )
+                    // every other value
+                    if (index % 2 == 0) { // 2,4,6,8
+                        println("*** NJD: mod: ($xPosition, $yPosition")
+                        // every other point we actually use as a destination
+                        // for bezier quadratic curve
+                        //              cp
+                        //           *  *  *
+                        //        *           *p2
+                        //    p1
+                        //
+                        path.quadraticBezierTo(
+                            previousXPosition,
+                            previousYPosition,
+                            xPosition,
+                            yPosition
+                        )
+                    }
+                    // otherwise, this point will be used as a control point
                 }
 
                 previousXPosition = xPosition
                 previousYPosition = yPosition
-            }
 
-            drawPath(
-                path = path,
-                color = pathColor,
-                style = Stroke(2.dp.toPx())
-            )
+                drawCircle(
+                    color = Color.Red,
+                    radius = 10f,
+                    center = Offset(xPosition, yPosition)
+                )
+
+                drawPath(
+                    path = path,
+                    color = pathColor,
+                    style = Stroke(2.dp.toPx())
+                )
+            }
         }
     }
 
