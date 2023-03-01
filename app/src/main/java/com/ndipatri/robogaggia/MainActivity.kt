@@ -395,39 +395,6 @@ class MainActivity : ComponentActivity() {
                 // We start creating our path far enough to the
                 // left so all values will fit.
 
-
-//              NJD - this approach uses every other data point as control point
-//                println("*** NJD: index: $index, value: $value")
-//                val xPosition = size.width - (xStepPx * (values.size - index))
-//
-//                val yPosition = yZeroPx - (value * yScaleFactor)
-//
-//                if (index == 0) {
-//                    println("*** NJD: moveTo: ($xPosition, $yPosition")
-//                    path.moveTo(xPosition, yPosition)
-//                } else {
-//                    println("*** NJD: other ($xPosition, $yPosition")
-//
-//                    // every other value
-//                    if (index % 2 == 0) { // 2,4,6,8
-//                        println("*** NJD: mod: ($xPosition, $yPosition")
-//                        // every other point we actually use as a destination
-//                        // for bezier quadratic curve
-//                        //              cp
-//                        //           *  *  *
-//                        //        *           *p2
-//                        //    p1
-//                        //
-//                        path.quadraticBezierTo(
-//                            previousXPosition,
-//                            previousYPosition,
-//                            xPosition,
-//                            yPosition
-//                        )
-//                    }
-//                    // otherwise, this point will be used as a control point
-//                }
-
                 // NJD - this approach we create two fake control points in between data points..
                 // We start creating our path far enough to the
                 // left so all values will fit.
@@ -463,18 +430,12 @@ class MainActivity : ComponentActivity() {
                 previousXPosition = xPosition
                 previousYPosition = yPosition
 
+                // we want an explicit mark at every data point
                 drawCircle(
-                    color = Color.Red,
+                    color = pathColor,
                     radius = 10f,
                     center = Offset(xPosition, yPosition)
                 )
-
-
-
-
-
-
-
 
                 drawPath(
                     path = path,
