@@ -123,10 +123,9 @@ class MainActivity : ComponentActivity() {
                 } else {
                     val accumulatedTelemetry = (uiState as UIState.Data).accumulatedTelemetry
 
-                    val (seriesList, maxValueList, unitList, colorList) = SeriesData(accumulatedTelemetry)
+                    val (seriesList, maxValueList, unitList, colorList, weightIndex) = SeriesData(accumulatedTelemetry)
 
-                    //val visibleSeriesMap = remember { mutableStateMapOf(0 to true, 1 to true, 2 to true, 3 to true, 4 to true) }
-                    val visibleSeriesMap = remember { mutableStateMapOf(0 to true, 1 to false, 2 to false, 3 to false, 4 to false) }
+                    val visibleSeriesMap = remember { mutableStateMapOf(0 to true, 1 to true, 2 to true, 3 to true, 4 to true) }
 
                     val xStepsPerScreen = 40
                     val secondsPerStep = 1.2
@@ -169,36 +168,80 @@ class MainActivity : ComponentActivity() {
                         }
                     }
 
-                    val screenDensity = LocalDensity.current
-                    val textPaint = remember(screenDensity) {
-                        Paint().apply {
-                            color = White.toArgb()
-                            textAlign = Paint.Align.CENTER
-                            textSize = screenDensity.run { 12.sp.toPx() }
-                        }
-                    }
+                    TimeBar(xStepsPerScreen, seriesList, secondsPerStep)
 
-                    Canvas(
-                        modifier = Modifier
-                            .padding(bottom = 15.dp)
-                            .fillMaxSize()
-                    ) {
 
-                        val xStepPx = size.width / xStepsPerScreen
-                        val totalValues = seriesList[0].size
-                        for (index in 1..totalValues) {
-                            // We only draw text at certain time intervals
-                            if (index % 5 == 0 || index == 1 || index == totalValues) {
+//                    val screenDensity = LocalDensity.current
+//                    val verticalDelimeterPaint = remember(screenDensity) {
+//                        Paint().apply {
+//                            color = White.toArgb()
+//                            textAlign = Paint.Align.CENTER
+//                            textSize = screenDensity.run { 12.sp.toPx() }
+//                        }
+//                    }
+//
+//                    Canvas(
+//                        modifier = Modifier
+//                            .padding(bottom = 15.dp)
+//                            .fillMaxSize()
+//                    ) {
+//
+//                        val xStepPx = size.width / xStepsPerScreen
+//                        seriesList[weightIndex].first { it > 0 }.let {
+//
+//                        }
+//
+//                        for (index in 1..totalValues) {
+//                            // We only draw text at certain time intervals
+//                            if (index % 5 == 0 || index == 1 || index == totalValues) {
+//
+//                                drawContext.canvas.nativeCanvas.drawText(
+//                                    "${(index * secondsPerStep).toInt()}s",
+//                                    size.width - (xStepPx * (totalValues - index) + 35),
+//                                    size.height,
+//                                    textPaint
+//                                )
+//                            }
+//                        }
+//                    }
+                }
+            }
+        }
+    }
 
-                                drawContext.canvas.nativeCanvas.drawText(
-                                    "${(index * secondsPerStep).toInt()}s",
-                                    size.width - (xStepPx * (totalValues - index) + 35),
-                                    size.height,
-                                    textPaint
-                                )
-                            }
-                        }
-                    }
+    @Composable
+    private fun MainActivity.TimeBar(
+        xStepsPerScreen: Int,
+        seriesList: List<List<Float>>,
+        secondsPerStep: Double
+    ) {
+        val screenDensity = LocalDensity.current
+        val textPaint = remember(screenDensity) {
+            Paint().apply {
+                color = White.toArgb()
+                textAlign = Paint.Align.CENTER
+                textSize = screenDensity.run { 12.sp.toPx() }
+            }
+        }
+
+        Canvas(
+            modifier = Modifier
+                .padding(bottom = 15.dp)
+                .fillMaxSize()
+        ) {
+
+            val xStepPx = size.width / xStepsPerScreen
+            val totalValues = seriesList[0].size
+            for (index in 1..totalValues) {
+                // We only draw text at certain time intervals
+                if (index % 5 == 0 || index == 1 || index == totalValues) {
+
+                    drawContext.canvas.nativeCanvas.drawText(
+                        "${(index * secondsPerStep).toInt()}s",
+                        size.width - (xStepPx * (totalValues - index) + 35),
+                        size.height,
+                        textPaint
+                    )
                 }
             }
         }
@@ -363,7 +406,7 @@ class MainActivity : ComponentActivity() {
     }
 
     @Composable
-    fun LineGraph(
+    fun MainActivity.LineGraph(
         modifier: Modifier,
         pathColor: Color,
         yValues: List<Float>,
@@ -458,7 +501,8 @@ class MainActivity : ComponentActivity() {
         val seriesList: List<List<Float>>,
         val maxValueList: List<Float>,
         val unitList: List<String>,
-        val colorList: List<Color>
+        val colorList: List<Color>,
+        val weightIndex: Int
     ) {
         constructor(accumulatedTelemetry: List<TelemetryMessage>) :
                 this(
@@ -471,7 +515,8 @@ class MainActivity : ComponentActivity() {
 
                     maxValueList = listOf(50f, 15f, 5f, 150f, 100f),
                     unitList = listOf("grams", "bars", "grams/sec", "tempC", "pumpPower"),
-                    colorList = listOf(Yellow, Red, Magenta, Green, Purple40)
+                    colorList = listOf(Yellow, Red, Magenta, Green, Purple40),
+                    weightIndex = 0 // index in series where weight values reside
                 )
     }
 }
