@@ -23,7 +23,7 @@ mqttx conn -h localhost -p 1883 &
 # Launch RoboGaggia Video of a shot being pulled....
 # The start time is calibrated with teh telemetry data so the extraction weight (yellow line) starts
 # to grow the moment liquid is shown to fall into the cup in the video.
-#open -a /Applications/VLC.app/Contents/MacOS/VLC './shotExtraction.mov' --args --start-time 0000 | at now + 2 second
+open -a /Applications/VLC.app/Contents/MacOS/VLC './shotExtraction.mov' --args --start-time 0000 | at now + 0 second
 
 # Push fake Telemetry
 input="./telemetry.csv"
